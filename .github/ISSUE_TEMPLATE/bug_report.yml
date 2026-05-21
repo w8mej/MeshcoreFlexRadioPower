@@ -1,0 +1,95 @@
+name: Bug report
+description: Something is misbehaving in the bot or setup script.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing! Please redact any `tuya_local_key`, `tuya_device_id`,
+        or 64-hex MeshCore public keys from logs and configs before submitting.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I send `!flex on` from my HT, the relay clicks but the radio doesn't come up..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: "Radio should power on, same as a short press of the front-panel button."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Send `!flex status` → reports `relay=open`
+        2. Send `!flex on` from authorized DM
+        3. Hear the relay click
+        4. Wait 30 s
+        5. Radio doesn't come up
+    validations:
+      required: true
+
+  - type: textarea
+    id: log-excerpt
+    attributes:
+      label: Relevant audit log lines
+      description: From `/var/log/flex_radio_bot.log`. **Redact `sender_key` values.**
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: bot-version
+    attributes:
+      label: MeshcoreFlexRadioPower version (git SHA or tag)
+      placeholder: "0.1.0 or 7f3a812"
+    validations:
+      required: true
+
+  - type: input
+    id: tinytuya-version
+    attributes:
+      label: tinytuya version
+      placeholder: "Output of `pip show tinytuya | grep Version`"
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: TYWB model + firmware
+      placeholder: "MHCOZY TYWB 4ch, Tuya protocol 3.4"
+    validations:
+      required: true
+
+  - type: input
+    id: radio
+    attributes:
+      label: Flex model + firmware
+      placeholder: "flex-8600, SmartSDR 3.7.1"
+    validations:
+      required: false
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version on the host
+      placeholder: "3.11.7"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      placeholder: "Network layout, recent changes, etc."

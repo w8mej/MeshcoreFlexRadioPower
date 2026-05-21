@@ -1,0 +1,18 @@
+{
+  "tuya_device_id": "bfXXXXXXXXXXXXXXXXXXXX",
+  "tuya_local_key": "REPLACE_WITH_LOCAL_KEY",
+  "tuya_address": "Auto",
+  "tuya_version": 3.4,
+  "relay_channel": 1,
+  "short_pulse_seconds": 0.5,
+  "long_pulse_seconds": 5.0,
+  "cooldown_seconds": 3.0,
+  "allowed_sender_keys": [
+    "PUT_64_HEX_PUBKEY_OF_OPERATOR_1_HERE",
+    "PUT_64_HEX_PUBKEY_OF_OPERATOR_2_HERE"
+  ],
+  "flex_host": "flex-8600.local",
+  "flex_smartsdr_port": 4992,
+  "log_path": "/var/log/flex_radio_bot.log",
+  "allow_channel_control": false
+}

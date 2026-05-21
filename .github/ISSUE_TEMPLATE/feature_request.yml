@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a new feature or enhancement.
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, please skim [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).
+        We deliberately keep the bot's surface small — features that add
+        background threads, cloud dependencies, or PTT control are unlikely to
+        be accepted into core.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: The use case, not the proposed solution.
+      placeholder: "When my radio is on, I sometimes want to confirm it's actually transmitting without going to the front panel..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: "Add `!flex tx` that probes SmartSDR's CAT-IP port and reports the TX flag."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: "I could already do this with a separate script, but having it in the bot would unify the operator interface."
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      multiple: false
+      options:
+        - Core bot (flex_radio_bot.py)
+        - Setup script (flex_setup.py)
+        - Documentation
+        - Tests / CI
+        - New optional module
+    validations:
+      required: true
