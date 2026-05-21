@@ -125,6 +125,70 @@ def load_from_wizard(device_id: str | None) -> tuple[str, str, float, str]:
     return e["id"], e["key"], float(e.get("ver", 3.4)), e.get("ip", "Auto")
 
 
+def fetch_vault_secret(url: str, secret_path: str, secret_key: str, token: str | None, token_path: str | None) -> str:
+    """
+    Retrieve the local key from a HashiCorp Vault server.
+
+    Args:
+        url (str): Vault server URL.
+        secret_path (str): API endpoint path.
+        secret_key (str): Dictionary key to lookup.
+        token (str | None): Plaintext token.
+        token_path (str | None): Token file path.
+
+    Returns:
+        str: The retrieved secret value.
+    """
+    import json
+    import os
+    import urllib.error
+    import urllib.request
+    from pathlib import Path
+
+    if not token and token_path:
+        try:
+            token = Path(token_path).read_text().strip()
+        except OSError as e:
+            sys.exit(f"Error reading Vault token from {token_path}: {e}")
+
+    if not token:
+        token = os.environ.get("VAULT_TOKEN")
+
+    if not token:
+        sys.exit("Error: --use-vault requires a Vault token (passed via --vault-token, --vault-token-path, or the VAULT_TOKEN environment variable).")
+
+    base_url = url.rstrip("/")
+    path = secret_path.lstrip("/")
+    full_url = f"{base_url}/{path}"
+
+    print(f"Fetching key from Vault at {full_url}...")
+    req = urllib.request.Request(full_url)
+    req.add_header("X-Vault-Token", token)
+    req.add_header("Accept", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=5.0) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+    except Exception as e:
+        sys.exit(f"Error fetching from Vault: {e}")
+
+    try:
+        data = res_data.get("data", {})
+        if "data" in data and isinstance(data["data"], dict):
+            # KV V2
+            secret_value = data["data"].get(secret_key)
+        else:
+            # KV V1
+            secret_value = data.get(secret_key)
+
+        if not secret_value:
+            sys.exit(f"Error: Secret key {secret_key!r} not found in Vault response.")
+
+        return str(secret_value)
+    except Exception as e:
+        sys.exit(f"Error parsing Vault response: {e}")
+
+
 def connect(device_id: str, local_key: str, address: str, version: float):
     """
     Establish a connection client instance with the local Tuya relay device.
@@ -232,13 +296,32 @@ def main() -> int:
     ap.add_argument("--config", default=str(DEFAULT_CONFIG_PATH))
     ap.add_argument("--scan-only", action="store_true", help="just scan and exit")
     ap.add_argument("--test-only", action="store_true", help="exercise relay, don't write config")
+    ap.add_argument("--use-vault", action="store_true", help="use HashiCorp Vault for local_key")
+    ap.add_argument("--vault-url", default="http://127.0.0.1:8200", help="Vault server URL")
+    ap.add_argument("--vault-token", default=None, help="Vault API token")
+    ap.add_argument("--vault-token-path", default=None, help="Vault API token file path")
+    ap.add_argument("--vault-secret-path", default="v1/secret/data/flexradio", help="Vault secret path")
+    ap.add_argument("--vault-secret-key", default="tuya_local_key", help="Vault secret key name")
     args = ap.parse_args()
 
     if args.scan_only:
         scan_lan()
         return 0
 
-    if args.from_wizard:
+    if args.use_vault:
+        if args.from_wizard:
+            sys.exit("Error: Cannot use --from-wizard and --use-vault simultaneously.")
+        device_id = args.device_id or input("device_id: ").strip()
+        local_key = fetch_vault_secret(
+            args.vault_url,
+            args.vault_secret_path,
+            args.vault_secret_key,
+            args.vault_token,
+            args.vault_token_path,
+        )
+        version = args.version
+        address = args.address
+    elif args.from_wizard:
         device_id, local_key, version, address = load_from_wizard(args.device_id)
     else:
         device_id = args.device_id or input("device_id: ").strip()
@@ -263,7 +346,7 @@ def main() -> int:
 
     cfg = {
         "tuya_device_id": device_id,
-        "tuya_local_key": local_key,
+        "tuya_local_key": "" if args.use_vault else local_key,
         "tuya_address": address,
         "tuya_version": version,
         "relay_channel": args.channel,
@@ -275,6 +358,12 @@ def main() -> int:
         "flex_smartsdr_port": 4992,
         "log_path": "/var/log/flex_radio_bot.log",
         "allow_channel_control": bool(args.allow_channel_control),
+        "use_vault": bool(args.use_vault),
+        "vault_url": args.vault_url,
+        "vault_token": args.vault_token,
+        "vault_token_path": args.vault_token_path,
+        "vault_secret_path": args.vault_secret_path,
+        "vault_secret_key": args.vault_secret_key,
     }
     write_config(Path(args.config), cfg)
 

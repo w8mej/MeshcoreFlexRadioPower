@@ -116,6 +116,14 @@ A non-root local user with `CAP_DAC_OVERRIDE` or `sudo` is out of scope.
 - Dependabot watches for advisories on the dependency.
 - CI runs lint + tests on every PR.
 
+### A7 — Malicious or malfunctioning node spamming commands
+
+**Goal:** Cause a Denial of Service (DoS) on the Pi host by filling up the disk with logs of unauthorized attempts.
+
+**Mitigations:**
+- The bot's logger utilizes a thread-safe `RotatingFileHandler` configured with `maxBytes=1,000,000` (1MB) and a `backupCount=3`.
+- The total log footprint on disk is strictly capped at ~4MB. Even a high-rate flood of unauthorized commands cannot exhaust the host filesystem space.
+
 ## What we explicitly do not defend against
 
 - **Physical access** to the Pi, the TYWB, or the radio. If someone is in
@@ -127,6 +135,7 @@ A non-root local user with `CAP_DAC_OVERRIDE` or `sudo` is out of scope.
 - **Denial of service against MeshCore.** Mesh jamming, repeater flooding,
   or LoRa noise floor attacks are out of scope.
 - **The radio's own software.** SmartSDR, fpgaImage, etc. are upstream.
+- **Replay attacks on the transport layer**: We assume the underlying mesh transport (MeshCore / LoRa node firmware) enforces packet freshness (e.g., cryptographic handshakes, packet sequence IDs, or timestamps) to prevent off-air record-and-replay attacks of authorized commands.
 
 ## Hardening recommendations
 
@@ -146,11 +155,12 @@ Beyond the defaults:
 5. **Rotate `tuya_local_key`** annually by re-pairing the TYWB.
 6. **Review the audit log** when you spot an unexpected state. The log
    contains every command with the requesting `sender_key`.
+7. **Configure default power-on status to OFF**: Before extracting the `tuya_local_key` and taking the TYWB off the cloud, open the Smart Life app, go to the relay settings, and ensure the "Power-on Status" is explicitly set to **OFF** (not "ON" or "Remember last state"). This ensures that if the shack loses and recovers AC power, the relay boots up safely OPEN (off).
+8. **Implement RF shielding & common-mode isolation**: High RF fields in the shack can couple into the RCA wire and trigger transient relay behavior or crash the TYWB. Place the Pi and TYWB in a shielded metal enclosure, use a high-quality double-shielded RCA cable, and wrap the cable around a Mix 31 or Mix 43 ferrite core (several turns) right before it enters the FlexRadio `REM` jack.
+9. **Use HashiCorp Vault Integration**: Fetch the sensitive `tuya_local_key` dynamically from HashiCorp Vault on-demand at bot startup instead of storing the plaintext key in the local configuration file. This eliminates on-disk plaintext credentials entirely.
 
 ## Future work
 
-- Store `tuya_local_key` in HashiCorp Vault, fetched at bot startup with a
-  short-lived token. Eliminates the on-disk plaintext.
 - Optional message signing/nonces inside the command payload for defense in
   depth on top of MeshCore's transport security.
 - Hardware deadman: a watchdog timer on a second relay channel that

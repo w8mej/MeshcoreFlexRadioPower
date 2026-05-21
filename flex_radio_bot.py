@@ -68,6 +68,7 @@ _CONFIG_MTIME: float = 0.0
 _LAST_CMD_AT: dict[str, float] = {}        # sender_key -> unix ts
 _LOGGER: logging.Logger | None = None
 _RELAY_LOCK = threading.Lock()             # serialize relay I/O
+_VAULT_LOCAL_KEY: str | None = None        # cache Vault key dynamically
 
 
 DEFAULT_CONFIG_PATH = os.environ.get(
@@ -92,7 +93,7 @@ def _load_config() -> dict | None:
         dict: The normalized configuration dictionary, or None if the file is missing,
               unreadable, or contains invalid JSON.
     """
-    global _CONFIG, _CONFIG_MTIME
+    global _CONFIG, _CONFIG_MTIME, _VAULT_LOCAL_KEY
     path = Path(DEFAULT_CONFIG_PATH)
     try:
         mtime = path.stat().st_mtime
@@ -121,9 +122,16 @@ def _load_config() -> dict | None:
     cfg.setdefault("flex_smartsdr_port", 4992)
     cfg.setdefault("log_path", "/var/log/flex_radio_bot.log")
     cfg.setdefault("allow_channel_control", False)
+    cfg.setdefault("use_vault", False)
+    cfg.setdefault("vault_url", "http://127.0.0.1:8200")
+    cfg.setdefault("vault_token", None)
+    cfg.setdefault("vault_token_path", None)
+    cfg.setdefault("vault_secret_path", "v1/secret/data/flexradio")
+    cfg.setdefault("vault_secret_key", "tuya_local_key")
 
     _CONFIG = cfg
     _CONFIG_MTIME = mtime
+    _VAULT_LOCAL_KEY = None  # Clear cache on reload to force refetching from Vault if config changed
     return cfg
 
 
@@ -167,6 +175,82 @@ def _logger(cfg: dict) -> logging.Logger:
 # Relay operations
 # ---------------------------------------------------------------------------
 
+def _fetch_from_vault(cfg: dict, log: logging.Logger) -> str | None:
+    """
+    Retrieve the Tuya local key from a HashiCorp Vault server.
+
+    This uses standard library urllib.request to fetch the secret to avoid
+    introducing heavy third-party dependencies (like hvac) in the bot context.
+
+    Args:
+        cfg (dict): The active configuration dictionary.
+        log (logging.Logger): The active logger.
+
+    Returns:
+        str | None: The retrieved local key, or None on failure.
+    """
+    url = cfg.get("vault_url")
+    secret_path = cfg.get("vault_secret_path")
+    secret_key = cfg.get("vault_secret_key", "tuya_local_key")
+
+    if not url or not secret_path:
+        log.error("Vault enabled but vault_url or vault_secret_path is not configured")
+        return None
+
+    # Retrieve token
+    token = cfg.get("vault_token")
+    if not token and cfg.get("vault_token_path"):
+        try:
+            token_path = Path(cfg["vault_token_path"])
+            token = token_path.read_text().strip()
+        except OSError as e:
+            log.error("Failed to read Vault token from %s: %s", cfg["vault_token_path"], e)
+            return None
+
+    if not token:
+        token = os.environ.get("VAULT_TOKEN")
+
+    if not token:
+        log.error("Vault enabled but no token found in config, token_path, or VAULT_TOKEN env var")
+        return None
+
+    base_url = url.rstrip("/")
+    path = secret_path.lstrip("/")
+    full_url = f"{base_url}/{path}"
+
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(full_url)
+    req.add_header("X-Vault-Token", token)
+    req.add_header("Accept", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=3.0) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+    except Exception as e:
+        log.error("Failed to fetch secret from Vault at %s: %s", full_url, e)
+        return None
+
+    try:
+        data = res_data.get("data", {})
+        if "data" in data and isinstance(data["data"], dict):
+            # KV V2
+            secret_value = data["data"].get(secret_key)
+        else:
+            # KV V1
+            secret_value = data.get(secret_key)
+
+        if not secret_value:
+            log.error("Secret key %r not found in Vault response at %s", secret_key, full_url)
+            return None
+
+        return str(secret_value)
+    except Exception as e:
+        log.error("Failed to parse Vault response from %s: %s", full_url, e)
+        return None
+
+
 def _new_device(cfg: dict):
     """
     Instantiate a new TinyTuya OutletDevice for local communication.
@@ -183,14 +267,29 @@ def _new_device(cfg: dict):
         tinytuya.OutletDevice: An un-connected Tuya OutletDevice.
 
     Raises:
-        RuntimeError: If the tinytuya library is not installed.
+        RuntimeError: If the tinytuya library is not installed or Vault retrieval fails.
     """
     if tinytuya is None:
         raise RuntimeError("tinytuya not installed")
+
+    local_key = cfg.get("tuya_local_key")
+    if cfg.get("use_vault"):
+        global _VAULT_LOCAL_KEY
+        if _VAULT_LOCAL_KEY is None:
+            log = _logger(cfg)
+            _VAULT_LOCAL_KEY = _fetch_from_vault(cfg, log)
+        if _VAULT_LOCAL_KEY:
+            local_key = _VAULT_LOCAL_KEY
+        else:
+            raise RuntimeError("Vault enabled but local_key could not be retrieved")
+
+    if not local_key:
+        raise RuntimeError("local_key is missing")
+
     d = tinytuya.OutletDevice(
         dev_id=cfg["tuya_device_id"],
         address=cfg.get("tuya_address") or "Auto",
-        local_key=cfg["tuya_local_key"],
+        local_key=local_key,
         version=float(cfg["tuya_version"]),
         connection_timeout=3,
     )

@@ -49,6 +49,7 @@ just the mesh you already have on the air.
   bouncing Remote-Terminal-for-MeshCore.
 - **Optional state sense.** If you give the bot the Flex's hostname, it'll
   probe SmartSDR's discovery port to corroborate radio-up state.
+- **Optional HashiCorp Vault Integration.** Dynamically retrieve the sensitive `tuya_local_key` at startup from a secure HashiCorp Vault instance (supporting KV V1/V2 engines, file-based token paths, and environment variable fallbacks) instead of storing plaintext credentials in the local configuration file.
 
 ---
 
@@ -64,11 +65,21 @@ sudo pip3 install -r requirements.txt --break-system-packages
 # 2. Pair the TYWB with the Smart Life / Tuya Smart app (one-time)
 #    https://www.tuya.com/  (or the Smart Life app)
 
-# 3. Pull the local_key from a Tuya developer account
+# 3. Retrieve the local_key (either via Tuya developer account or Vault)
+#    To pull via Tuya wizard:
 python3 -m tinytuya wizard
 
 # 4. Discover the relay and write /etc/meshcore/flex_radio_bot.json
+#    Option A: Standard setup with wizard credentials
 sudo python3 flex_setup.py --from-wizard \
+    --channel 1 \
+    --flex-host flex-8600.local \
+    --add-key <YOUR_64_HEX_MESHCORE_PUBKEY>
+
+#    Option B: Vault setup (does not write tuya_local_key to local disk)
+sudo python3 flex_setup.py --use-vault \
+    --vault-url http://127.0.0.1:8200 \
+    --vault-secret-path v1/secret/data/flexradio \
     --channel 1 \
     --flex-host flex-8600.local \
     --add-key <YOUR_64_HEX_MESHCORE_PUBKEY>
@@ -79,6 +90,9 @@ sudo python3 flex_setup.py --from-wizard \
 
 The setup script will exercise the relay (short pulse, then optionally a long
 press) so you can confirm wiring before flying blind from the mesh.
+If using Vault, the script queries Vault to dynamically verify credentials during
+the setup run and writes the proper Vault metadata configuration while leaving the
+local `tuya_local_key` field blank.
 
 See [`docs/HARDWARE.md`](docs/HARDWARE.md) for the wiring diagram and parts
 list, and [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) for the threat

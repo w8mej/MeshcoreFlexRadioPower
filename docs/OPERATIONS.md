@@ -5,11 +5,11 @@ station unattended for a contest weekend.
 
 ## Files and where they live
 
-| Path                                  | Purpose                              | Mode |
-|---------------------------------------|--------------------------------------|------|
-| `/etc/meshcore/flex_radio_bot.json`   | Bot config (contains the local key)  | 0600 |
-| `/var/log/flex_radio_bot.log`         | Audit log + rotation                 | 0640 |
-| (within Remote-Terminal-for-MeshCore) | Bot source, pasted into the UI       | —    |
+| Path                                  | Purpose                                             | Mode |
+|---------------------------------------|-----------------------------------------------------|------|
+| `/etc/meshcore/flex_radio_bot.json`   | Bot config (contains local key or Vault parameters) | 0600 |
+| `/var/log/flex_radio_bot.log`         | Audit log + rotation                                | 0640 |
+| (within Remote-Terminal-for-MeshCore) | Bot source, pasted into the UI                      | —    |
 
 The bot does not have its own systemd unit — it runs inside Remote-Terminal-
 for-MeshCore's process. If that crashes, the bot is gone. Make sure
@@ -53,6 +53,7 @@ Things to look for:
   stale and contains a key whose private side has been compromised.
 - **`relay error` in clusters.** Either Wi-Fi is flaky to the TYWB or the
   Tuya key rotated unexpectedly (re-pair attempt?).
+- **Vault connectivity errors.** If Vault is enabled, the log will capture failures to retrieve the secret from the server (e.g. invalid token, server unreachable, or incorrect secret path/key).
 
 ## Routine maintenance
 
@@ -65,8 +66,8 @@ Things to look for:
 
 ### Annually
 
-- Rotate `tuya_local_key` by re-pairing the TYWB. Update the config with
-  `flex_setup.py --from-wizard`.
+- Rotate `tuya_local_key` by re-pairing the TYWB. Update the config or your Vault secret store.
+- If using Vault, rotate the Vault API token or update the file specified in `vault_token_path` according to your organization's security policy.
 - Review the allowlist. Remove any operators whose key you no longer
   recognize or who have left the group.
 
@@ -78,7 +79,7 @@ Things to look for:
 
 ## Backup and recovery
 
-The only thing you can't easily reconstruct is the `tuya_local_key`.
+The only thing you can't easily reconstruct is the `tuya_local_key` (or your Vault storage backup).
 Everything else (config schema, source) is in this repository.
 
 Recommended backup:
@@ -89,9 +90,10 @@ sudo cat /etc/meshcore/flex_radio_bot.json | \
     gpg --encrypt --recipient w8mej@haxx.ninja > flex_radio_bot.json.gpg
 ```
 
+If you are using HashiCorp Vault, verify your Vault server's snapshot/backup strategies so the secret key can be restored if the Vault instance experiences hardware failures.
+
 If you lose the local key entirely: re-pair the TYWB, run the wizard,
-re-run `flex_setup.py --from-wizard`. Five minutes of downtime if your
-Smart Life account is intact.
+re-run `flex_setup.py --from-wizard` (or populate it to your new Vault instance). Five minutes of downtime if your Smart Life account is intact.
 
 ## Upgrading
 

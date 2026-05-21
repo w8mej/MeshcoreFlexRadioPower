@@ -9,11 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Optional Vault-backed retrieval of `tuya_local_key` (no plaintext on disk).
 - Second-channel RF sense input to confirm radio actually came up.
 - TX interlock — refuse `!flex off`/`!flex kill` while SmartSDR reports active
   transmission.
 - Optional MQTT bridge for status fan-out to a station dashboard.
+
+## [0.2.0] - 2026-05-20
+
+### Added
+
+- Native HashiCorp Vault support. Dynamically retrieves the sensitive `tuya_local_key` at startup from Vault, eliminating the need to store the plaintext key on the local disk.
+- Support for Vault KV V1 and KV V2 secret engines, file-based token paths, and environment variable fallbacks.
+- Diagnostic credential verification in `flex_setup.py`.
+- Comprehensive test coverage verifying Vault credential retrieval, caching, reloading, error handling, and fail-closed behaviors.
 
 ## [0.1.0] - 2026-05-20
 
@@ -33,5 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI: lint + test on Python 3.9 through 3.12.
 - Dependabot config for `pip` and `github-actions` ecosystems.
 
-[Unreleased]: https://github.com/w8mej/MeshcoreFlexRadioPower/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/w8mej/MeshcoreFlexRadioPower/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/w8mej/MeshcoreFlexRadioPower/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/w8mej/MeshcoreFlexRadioPower/releases/tag/v0.1.0

@@ -125,3 +125,20 @@ def test_no_reload_if_mtime_unchanged(fresh_bot):
     cfg1 = frb._load_config()
     cfg2 = frb._load_config()
     assert cfg1 is cfg2   # cache hit returns the same object
+
+
+def test_vault_defaults(fresh_bot):
+    """Verify that Vault configuration defaults are correctly populated."""
+    frb, path = fresh_bot
+    _write(path, {
+        "tuya_device_id": "x",
+        "tuya_local_key": "y",
+    })
+    cfg = frb._load_config()
+    assert cfg is not None
+    assert cfg["use_vault"] is False
+    assert cfg["vault_url"] == "http://127.0.0.1:8200"
+    assert cfg["vault_token"] is None
+    assert cfg["vault_token_path"] is None
+    assert cfg["vault_secret_path"] == "v1/secret/data/flexradio"
+    assert cfg["vault_secret_key"] == "tuya_local_key"

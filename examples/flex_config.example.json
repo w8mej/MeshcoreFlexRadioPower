@@ -1,6 +1,12 @@
 {
   "tuya_device_id": "bfXXXXXXXXXXXXXXXXXXXX",
   "tuya_local_key": "REPLACE_WITH_LOCAL_KEY",
+  "use_vault": false,
+  "vault_url": "http://127.0.0.1:8200",
+  "vault_token": null,
+  "vault_token_path": null,
+  "vault_secret_path": "v1/secret/data/flexradio",
+  "vault_secret_key": "tuya_local_key",
   "tuya_address": "Auto",
   "tuya_version": 3.4,
   "relay_channel": 1,
