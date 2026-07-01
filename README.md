@@ -15,7 +15,7 @@ state — from anywhere their MeshCore node can reach. The relay end is an
 Tuya Wi-Fi switch wired into the back-panel `REM` jack.
 
 ```
-    HT / portable node                  Pi + Remote-Terminal-for-MeshCore
+    HT / portable node                  Host + Remote-Terminal-for-MeshCore
    ┌──────────────────┐  LoRa (mesh)   ┌─────────────────────────────────┐
    │  "!flex on"  ────┼───────────────▶│  flex_radio_bot.py              │
    │                  │                │       │                         │
@@ -44,7 +44,7 @@ just the mesh you already have on the air.
 - **DM-only by default.** Channel mode only exposes read-only `!flex status`
   and `!flex help`. Mutation requires a direct message.
 - **Per-sender cooldown** to suppress fat-finger doubles.
-- **Audit log** with rotation (`/var/log/flex_radio_bot.log` by default).
+- **Audit log** with rotation (macOS: `~/Library/Logs/flex_radio_bot.log`; Linux: `/var/log/flex_radio_bot.log`).
 - **Hot-reload config** on file mtime change. Edit the allowlist without
   bouncing Remote-Terminal-for-MeshCore.
 - **Optional state sense.** If you give the bot the Flex's hostname, it'll
@@ -55,18 +55,45 @@ just the mesh you already have on the air.
 
 ## Quick start
 
+### macOS
+
 ```bash
 git clone git@github.com:w8mej/MeshcoreFlexRadioPower.git
 cd MeshcoreFlexRadioPower
 
-# 1. Install dependency on the Pi
-sudo pip3 install -r requirements.txt --break-system-packages
+# 1. Create a virtual environment and install the dependency
+python3 -m venv .venv && source .venv/bin/activate
+pip install tinytuya
 
 # 2. Pair the TYWB with the Smart Life / Tuya Smart app (one-time)
 #    https://www.tuya.com/  (or the Smart Life app)
 
+# 3. Retrieve the local_key via the Tuya wizard:
+python3 -m tinytuya wizard
+
+# 4. Discover the relay and write ~/.config/flexradio/flex_radio_bot.json
+python3 flex_setup.py --from-wizard \
+    --channel 1 \
+    --flex-host flex-8600.local \
+    --add-key <YOUR_64_HEX_MESHCORE_PUBKEY>
+
+# 5. In Remote-Terminal-for-MeshCore: New Python Bot →
+#    paste the contents of flex_radio_bot.py → Enable.
+# 6. Set up a LaunchAgent for auto-restart — see docs/OPERATIONS.md
+```
+
+### Raspberry Pi / Linux
+
+```bash
+git clone git@github.com:w8mej/MeshcoreFlexRadioPower.git
+cd MeshcoreFlexRadioPower
+
+# 1. Install dependency
+sudo pip3 install -r requirements.txt --break-system-packages
+
+# 2. Pair the TYWB with the Smart Life / Tuya Smart app (one-time)
+
 # 3. Retrieve the local_key (either via Tuya developer account or Vault)
-#    To pull via Tuya wizard:
 python3 -m tinytuya wizard
 
 # 4. Discover the relay and write /etc/meshcore/flex_radio_bot.json
@@ -138,9 +165,10 @@ MeshcoreFlexRadioPower/
 │   └── flex_config.example.json
 ├── docs/
 │   ├── HARDWARE.md            Parts list, wiring diagram, Flex REM behaviour.
+│   ├── MACOS_PORTING.md       macOS porting proposal and change log.
 │   ├── SECURITY_MODEL.md      Threat model + mitigations.
-│   ├── TROUBLESHOOTING.md     Symptom → cause table, common gotchas.
-│   └── OPERATIONS.md          Day-to-day ops, log rotation, key rotation.
+│   ├── TROUBLESHOOTING.md     Symptom → cause table, common gotchas (macOS section included).
+│   └── OPERATIONS.md          Day-to-day ops, log rotation, key rotation (launchd section included).
 ├── tests/                     Unit tests for dispatch + config logic.
 ├── .github/                   CI workflow, issue templates, dependabot.
 ├── README.md                  You are here.

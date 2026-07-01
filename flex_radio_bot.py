@@ -44,6 +44,7 @@ import json
 import logging
 import logging.handlers
 import os
+import platform
 import socket
 import threading
 import time
@@ -71,8 +72,17 @@ _RELAY_LOCK = threading.Lock()             # serialize relay I/O
 _VAULT_LOCAL_KEY: str | None = None        # cache Vault key dynamically
 
 
+# Platform-aware default paths so the bot runs without sudo on macOS.
+if platform.system() == "Darwin":
+    _DEFAULT_CONFIG_DIR = Path.home() / ".config" / "flexradio"
+    _DEFAULT_LOG_PATH = str(Path.home() / "Library" / "Logs" / "flex_radio_bot.log")
+else:
+    _DEFAULT_CONFIG_DIR = Path("/etc/meshcore")
+    _DEFAULT_LOG_PATH = "/var/log/flex_radio_bot.log"
+
 DEFAULT_CONFIG_PATH = os.environ.get(
-    "FLEX_BOT_CONFIG", "/etc/meshcore/flex_radio_bot.json"
+    "FLEX_BOT_CONFIG",
+    str(_DEFAULT_CONFIG_DIR / "flex_radio_bot.json"),
 )
 
 
@@ -120,7 +130,7 @@ def _load_config() -> dict | None:
     cfg.setdefault("tuya_address", "Auto")    # "Auto" → broadcast discovery
     cfg.setdefault("flex_host", None)         # optional: hostname/IP of Flex for ping
     cfg.setdefault("flex_smartsdr_port", 4992)
-    cfg.setdefault("log_path", "/var/log/flex_radio_bot.log")
+    cfg.setdefault("log_path", _DEFAULT_LOG_PATH)
     cfg.setdefault("allow_channel_control", False)
     cfg.setdefault("use_vault", False)
     cfg.setdefault("vault_url", "http://127.0.0.1:8200")

@@ -2,18 +2,26 @@
 """
 flex_setup.py — One-shot setup + diagnostics for flex_radio_bot.py.
 
-Run this once on the Pi to:
+Run this once on your host machine to:
   1. Scan the LAN for the MHCOZY TYWB (auto-discover its IP).
   2. Verify Tuya credentials (device_id + local_key) work.
   3. Exercise the relay so you can confirm the wiring before you fly blind.
-  4. Write /etc/meshcore/flex_radio_bot.json (the bot's config).
+  4. Write the bot config to the platform-appropriate location:
+       macOS : ~/.config/flexradio/flex_radio_bot.json
+       Linux : /etc/meshcore/flex_radio_bot.json
 
 Then re-run it any time you need to add an authorized operator, change the
 pulse duration, or sanity-check the relay over the LAN.
 
 Prereqs
 -------
-  sudo pip3 install tinytuya --break-system-packages
+  macOS (Homebrew Python or system Python — use a venv):
+    python3 -m venv .venv && source .venv/bin/activate
+    pip install tinytuya
+
+  Raspberry Pi / Debian Linux:
+    sudo pip3 install tinytuya --break-system-packages
+    (or use a venv — see macOS instructions above)
 
 Getting the Tuya device_id + local_key
 --------------------------------------
@@ -50,6 +58,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+import platform
 import sys
 import time
 from pathlib import Path
@@ -57,10 +66,17 @@ from pathlib import Path
 try:
     import tinytuya
 except ImportError:
-    sys.exit("tinytuya not installed. Run: sudo pip3 install tinytuya --break-system-packages")
+    sys.exit(
+        "tinytuya not installed.\n"
+        "  macOS : python3 -m venv .venv && source .venv/bin/activate && pip install tinytuya\n"
+        "  Linux : sudo pip3 install tinytuya --break-system-packages"
+    )
 
-
-DEFAULT_CONFIG_PATH = Path("/etc/meshcore/flex_radio_bot.json")
+# Platform-aware default config path.
+if platform.system() == "Darwin":
+    DEFAULT_CONFIG_PATH = Path.home() / ".config" / "flexradio" / "flex_radio_bot.json"
+else:
+    DEFAULT_CONFIG_PATH = Path("/etc/meshcore/flex_radio_bot.json")
 
 
 def scan_lan() -> dict:
@@ -267,7 +283,14 @@ def write_config(path: Path, cfg: dict) -> None:
         json.dump(cfg, fh, indent=2, sort_keys=True)
     tmp.chmod(0o600)
     tmp.replace(path)
-    print(f"\nWrote {path} (mode 600). Restart Remote-Terminal-for-MeshCore so the bot reloads.")
+    restart_hint = (
+        "launchctl stop com.meshcore.remote-terminal && launchctl start com.meshcore.remote-terminal"
+        if platform.system() == "Darwin"
+        else "sudo systemctl restart remote-terminal"
+    )
+    print(f"\nWrote {path} (mode 600).")
+    print(f"Restart Remote-Terminal-for-MeshCore to pick up the new config:")
+    print(f"  {restart_hint}")
 
 
 def main() -> int:
@@ -356,7 +379,11 @@ def main() -> int:
         "allowed_sender_keys": [k.lower() for k in args.add_key],
         "flex_host": args.flex_host,
         "flex_smartsdr_port": 4992,
-        "log_path": "/var/log/flex_radio_bot.log",
+        "log_path": str(
+            Path.home() / "Library" / "Logs" / "flex_radio_bot.log"
+            if platform.system() == "Darwin"
+            else Path("/var/log/flex_radio_bot.log")
+        ),
         "allow_channel_control": bool(args.allow_channel_control),
         "use_vault": bool(args.use_vault),
         "vault_url": args.vault_url,

@@ -140,3 +140,55 @@ or you'll race the bot's 10-second timeout.
 Either you've never run `python3 -m tinytuya wizard`, or your `devices.json`
 predates pairing this TYWB. Re-run the wizard, which produces a fresh
 `devices.json`.
+
+## macOS-specific
+
+### macOS Application Firewall dialog blocks discovery
+
+When `tinytuya` first sends UDP broadcast packets, macOS may pop up a dialog
+asking whether to allow incoming connections for Python. Click **Allow**. If
+you dismissed it as "Deny":
+
+1. Open **System Settings → Network → Firewall → Options…**
+2. Find `python3` (or the full path to your venv's Python).
+3. Set it to **Allow incoming connections**.
+
+### UDP broadcast not reaching the TYWB
+
+`tinytuya`'s `deviceScan()` uses UDP broadcast on ports 6666/6667. These are
+unblocked by default on macOS unless Little Snitch or another firewall is
+running. Verify with:
+
+```bash
+sudo tcpdump -i en0 udp port 6666 &
+python3 -c "import tinytuya; print(tinytuya.deviceScan(False, 5))"
+```
+
+If the TYWB is on a separate VLAN, `deviceScan` won't reach it. Set a static
+IP on the device and use `--address <IP>` with `flex_setup.py` instead of
+relying on broadcast auto-discovery.
+
+### TCP/6668 connection refused
+
+The `tinytuya` control channel uses TCP/6668. If the connection times out:
+
+```bash
+nc -zv <TYWB_IP> 6668
+```
+
+Check that macOS's firewall (and any third-party firewall) allows outbound
+TCP to the TYWB's IP on port 6668.
+
+### Config file location on macOS
+
+The bot writes its config to `~/.config/flexradio/flex_radio_bot.json` on
+macOS (not `/etc/meshcore/…` as the Linux docs state). Validate the file:
+
+```bash
+python3 -m json.tool ~/.config/flexradio/flex_radio_bot.json
+```
+
+### SIP (System Integrity Protection)
+
+SIP does not affect this application — all writes go to user-owned
+`~/.config` and `~/Library/Logs`. No workarounds are needed.
