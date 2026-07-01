@@ -5,22 +5,99 @@ station unattended for a contest weekend.
 
 ## Files and where they live
 
-| Path                                  | Purpose                                             | Mode |
-|---------------------------------------|-----------------------------------------------------|------|
-| `/etc/meshcore/flex_radio_bot.json`   | Bot config (contains local key or Vault parameters) | 0600 |
-| `/var/log/flex_radio_bot.log`         | Audit log + rotation                                | 0640 |
-| (within Remote-Terminal-for-MeshCore) | Bot source, pasted into the UI                      | —    |
+| Path (Linux)                          | Path (macOS)                                    | Purpose                                             | Mode |
+|---------------------------------------|-------------------------------------------------|-----------------------------------------------------|------|
+| `/etc/meshcore/flex_radio_bot.json`   | `~/.config/flexradio/flex_radio_bot.json`       | Bot config (contains local key or Vault parameters) | 0600 |
+| `/var/log/flex_radio_bot.log`         | `~/Library/Logs/flex_radio_bot.log`             | Audit log + rotation                                | 0640 |
+| (within Remote-Terminal-for-MeshCore) | same                                            | Bot source, pasted into the UI                      | —    |
 
-The bot does not have its own systemd unit — it runs inside Remote-Terminal-
-for-MeshCore's process. If that crashes, the bot is gone. Make sure
-Remote-Terminal-for-MeshCore has a systemd unit (or equivalent) with
-`Restart=on-failure`.
+Both paths are auto-selected by the bot based on `platform.system()`. Override
+either with the `FLEX_BOT_CONFIG` environment variable (config) or the
+`log_path` config key (log).
+
+The bot does not have its own service unit — it runs inside Remote-Terminal-
+for-MeshCore's process. If that crashes, the bot is gone.
+
+## Service management
+
+### Linux (systemd)
+
+Make sure Remote-Terminal-for-MeshCore has a unit with `Restart=on-failure`:
+
+```ini
+# /etc/systemd/system/remote-terminal.service  (example)
+[Unit]
+Description=Remote Terminal for MeshCore
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/remote-terminal
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now remote-terminal
+```
+
+### macOS (launchd)
+
+Create a LaunchAgent plist so the process restarts on failure and survives
+login. Replace `YOUR_USER` with your actual username (`whoami`).
+
+```xml
+<!-- ~/Library/LaunchAgents/com.meshcore.remote-terminal.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.meshcore.remote-terminal</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/remote-terminal</string>
+    </array>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USER/Library/Logs/remote-terminal.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USER/Library/Logs/remote-terminal-error.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FLEX_BOT_CONFIG</key>
+        <string>/Users/YOUR_USER/.config/flexradio/flex_radio_bot.json</string>
+    </dict>
+</dict>
+</plist>
+```
+
+```bash
+# Load (enable + start):
+launchctl load ~/Library/LaunchAgents/com.meshcore.remote-terminal.plist
+
+# Stop / start without unloading:
+launchctl stop  com.meshcore.remote-terminal
+launchctl start com.meshcore.remote-terminal
+
+# Disable permanently:
+launchctl unload ~/Library/LaunchAgents/com.meshcore.remote-terminal.plist
+```
 
 ## Adding or removing an operator
 
 The config file hot-reloads on mtime change. To add an operator:
 
 ```bash
+# macOS
+$EDITOR ~/.config/flexradio/flex_radio_bot.json
+# Linux
 sudo $EDITOR /etc/meshcore/flex_radio_bot.json
 # add the 64-hex pubkey to allowed_sender_keys, save
 ```
@@ -34,8 +111,12 @@ behavior. The next command from that identity will get `[FLEX] unauthorized`.
 
 ## Reading the audit log
 
-The log lives at `/var/log/flex_radio_bot.log` and rotates at 1 MB with 3
-backups. Format:
+The log path is platform-selected (or overridden by `log_path` in config):
+
+- macOS: `~/Library/Logs/flex_radio_bot.log`
+- Linux: `/var/log/flex_radio_bot.log`
+
+It rotates at 1 MB with 3 backups. Format:
 
 ```
 2026-05-20 14:32:11,234 INFO ON pulse by w8mej ok=True
@@ -85,9 +166,13 @@ Everything else (config schema, source) is in this repository.
 Recommended backup:
 
 ```bash
-# Encrypt the config to your YubiKey-backed PGP key
-sudo cat /etc/meshcore/flex_radio_bot.json | \
-    gpg --encrypt --recipient w8mej@haxx.ninja > flex_radio_bot.json.gpg
+# Linux — encrypt the config to your YubiKey-backed PGP key
+cat /etc/meshcore/flex_radio_bot.json | \
+    gpg --encrypt --recipient YOUR_KEY_ID > flex_radio_bot.json.gpg
+
+# macOS
+cat ~/.config/flexradio/flex_radio_bot.json | \
+    gpg --encrypt --recipient YOUR_KEY_ID > flex_radio_bot.json.gpg
 ```
 
 If you are using HashiCorp Vault, verify your Vault server's snapshot/backup strategies so the secret key can be restored if the Vault instance experiences hardware failures.

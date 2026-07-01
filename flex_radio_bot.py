@@ -24,7 +24,10 @@ Commands (must be sent as a DM unless noted)
 
 Config
 ------
-Reads /etc/meshcore/flex_radio_bot.json (override via FLEX_BOT_CONFIG env var).
+Reads the config from (in priority order):
+  1. $FLEX_BOT_CONFIG env var
+  2. macOS : ~/.config/flexradio/flex_radio_bot.json
+     Linux : /etc/meshcore/flex_radio_bot.json
 See flex_config.example.json for the schema. The setup script flex_setup.py
 generates one for you.
 
@@ -32,7 +35,9 @@ Security
 --------
 - Allowlist of sender public keys; everything else gets a quiet "unauthorized".
 - Per-sender 3-second cooldown to suppress fat-fingered double sends.
-- Audit log to /var/log/flex_radio_bot.log (override in config).
+- Audit log (override via log_path config key):
+    macOS : ~/Library/Logs/flex_radio_bot.log
+    Linux : /var/log/flex_radio_bot.log
 - Channel messages only get read-only commands. Power control is DM-only.
 - Module-level state is intentional: persists between bot() invocations within
   the same Remote-Terminal process, resets on restart (fail-safe default).
@@ -44,14 +49,16 @@ import json
 import logging
 import logging.handlers
 import os
+import platform
 import socket
 import threading
 import time
 from pathlib import Path
 
-# tinytuya is the only third-party dep. Install on the Pi:
-#   sudo pip3 install tinytuya --break-system-packages
-# (or use a venv; whatever your Remote-Terminal-for-MeshCore install uses).
+# tinytuya is the only third-party dep.
+#   macOS : python3 -m venv .venv && source .venv/bin/activate && pip install tinytuya
+#   Linux : sudo pip3 install tinytuya --break-system-packages
+# (or use a venv on either platform).
 try:
     import tinytuya  # type: ignore
 except ImportError:  # pragma: no cover
@@ -71,8 +78,17 @@ _RELAY_LOCK = threading.Lock()             # serialize relay I/O
 _VAULT_LOCAL_KEY: str | None = None        # cache Vault key dynamically
 
 
+# Platform-aware default paths so the bot runs without sudo on macOS.
+if platform.system() == "Darwin":
+    _DEFAULT_CONFIG_DIR = Path.home() / ".config" / "flexradio"
+    _DEFAULT_LOG_PATH = str(Path.home() / "Library" / "Logs" / "flex_radio_bot.log")
+else:
+    _DEFAULT_CONFIG_DIR = Path("/etc/meshcore")
+    _DEFAULT_LOG_PATH = "/var/log/flex_radio_bot.log"
+
 DEFAULT_CONFIG_PATH = os.environ.get(
-    "FLEX_BOT_CONFIG", "/etc/meshcore/flex_radio_bot.json"
+    "FLEX_BOT_CONFIG",
+    str(_DEFAULT_CONFIG_DIR / "flex_radio_bot.json"),
 )
 
 
@@ -120,7 +136,7 @@ def _load_config() -> dict | None:
     cfg.setdefault("tuya_address", "Auto")    # "Auto" → broadcast discovery
     cfg.setdefault("flex_host", None)         # optional: hostname/IP of Flex for ping
     cfg.setdefault("flex_smartsdr_port", 4992)
-    cfg.setdefault("log_path", "/var/log/flex_radio_bot.log")
+    cfg.setdefault("log_path", _DEFAULT_LOG_PATH)
     cfg.setdefault("allow_channel_control", False)
     cfg.setdefault("use_vault", False)
     cfg.setdefault("vault_url", "http://127.0.0.1:8200")

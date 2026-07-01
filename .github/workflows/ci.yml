@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, apples]
   pull_request:
     branches: [main]
 
@@ -28,10 +28,11 @@ jobs:
         run: ruff format --check .
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v6
@@ -47,11 +48,12 @@ jobs:
         run: pytest --cov=flex_radio_bot --cov-report=term-missing
 
   syntax-only-setup:
-    # Make sure flex_setup.py parses on every supported Python.
+    # Make sure flex_setup.py parses on every supported Python and OS.
     # We can't actually exercise it without a TYWB, but parse-clean is cheap.
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.12"]
     steps:
       - uses: actions/checkout@v6

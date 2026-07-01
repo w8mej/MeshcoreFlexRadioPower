@@ -1,4 +1,6 @@
 {
+  "_comment_paths": "Config: Linux=/etc/meshcore/flex_radio_bot.json | macOS=~/.config/flexradio/flex_radio_bot.json",
+  "_comment_log": "Log:    Linux=/var/log/flex_radio_bot.log        | macOS=~/Library/Logs/flex_radio_bot.log",
   "tuya_device_id": "bfXXXXXXXXXXXXXXXXXXXX",
   "tuya_local_key": "REPLACE_WITH_LOCAL_KEY",
   "use_vault": false,

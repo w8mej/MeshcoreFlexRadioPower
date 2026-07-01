@@ -10,8 +10,8 @@ durations sensibly.
 |-----------------------------------------|------------------------------------|--------------|
 | MHCOZY TYWB (1ch, 2ch, or 4ch)          | Wi-Fi-controlled dry-contact relay | $12–$20      |
 | RCA male → bare-wire pigtail            | Connects relay COM/NO to Flex REM  | $4           |
-| 5 V USB power supply (or Pi USB port)   | Powers the TYWB                    | (have one)   |
-| Raspberry Pi 3B+/4/5 on the same LAN    | Hosts Remote-Terminal-for-MeshCore | (have one)   |
+| 5 V USB power supply                    | Powers the TYWB                    | (have one)   |
+| Any LAN-connected host (Pi, Mac, NUC, …) | Hosts Remote-Terminal-for-MeshCore | (have one)   |
 | Optional: 12 V DC source                | TYWB also accepts 7–32 V DC        | —            |
 
 The four-channel TYWB is the version FlexRadio documents. Even if you only
@@ -89,9 +89,9 @@ interpreted as a long press on some firmware.
 
 ```
    ┌──────────────────┐         ┌──────────────────┐
-   │ Raspberry Pi     │ Wi-Fi   │  MHCOZY TYWB     │
-   │ Remote-Terminal- │◀───────▶│  (Tuya 3.4)      │
-   │ for-MeshCore     │  LAN    │                  │
+   │ Host machine     │ Wi-Fi   │  MHCOZY TYWB     │
+   │ (Pi, Mac, NUC)   │◀───────▶│  (Tuya 3.4)      │
+   │ Remote-Terminal  │  LAN    │                  │
    │ flex_radio_bot   │         └─────────┬────────┘
    └──────────────────┘                   │ dry contact
                                           ▼
@@ -101,14 +101,14 @@ interpreted as a long press on some firmware.
                                   └──────────────────┘
 ```
 
-Both the Pi and the TYWB must be on the same Layer 2 segment for `tinytuya`
+Both the host and the TYWB must be on the same Layer 2 segment for `tinytuya`
 broadcast discovery to work. If you've VLANed your IoT gear off (good
 instinct), either:
 
-1. Put the Pi on the IoT VLAN too, or
+1. Put the host on the IoT VLAN too, or
 2. Give the TYWB a DHCP reservation and put its IP in the config as
    `tuya_address` instead of `"Auto"`. Then make sure the firewall permits
-   TCP/6668 from the Pi to the TYWB.
+   TCP/6668 from the host to the TYWB.
 
 ## Selecting the relay channel
 
