@@ -101,14 +101,14 @@ interpreted as a long press on some firmware.
                                   └──────────────────┘
 ```
 
-Both the Pi and the TYWB must be on the same Layer 2 segment for `tinytuya`
+Both the host and the TYWB must be on the same Layer 2 segment for `tinytuya`
 broadcast discovery to work. If you've VLANed your IoT gear off (good
 instinct), either:
 
-1. Put the Pi on the IoT VLAN too, or
+1. Put the host on the IoT VLAN too, or
 2. Give the TYWB a DHCP reservation and put its IP in the config as
    `tuya_address` instead of `"Auto"`. Then make sure the firewall permits
-   TCP/6668 from the Pi to the TYWB.
+   TCP/6668 from the host to the TYWB.
 
 ## Selecting the relay channel
 

@@ -8,23 +8,39 @@ your `tinytuya` version.
 
 ### `[FLEX] config missing or unreadable`
 
-The bot can't open `/etc/meshcore/flex_radio_bot.json`.
+The bot can't open its config file. Default locations:
+
+- macOS: `~/.config/flexradio/flex_radio_bot.json`
+- Linux: `/etc/meshcore/flex_radio_bot.json`
+
+Override either path with the `FLEX_BOT_CONFIG` env var.
 
 - Wrong path? Set `FLEX_BOT_CONFIG` in the environment of the process running
   Remote-Terminal-for-MeshCore.
 - Wrong permissions? Bot's user must be able to read mode-0600 file. If
   Remote-Terminal runs as a non-root user, either `chown` the config to that
   user or relax to mode 0640 with a matching group.
-- Bad JSON? Run `python3 -m json.tool /etc/meshcore/flex_radio_bot.json` to
-  validate.
+- Bad JSON? Validate with:
+  ```bash
+  # macOS
+  python3 -m json.tool ~/.config/flexradio/flex_radio_bot.json
+  # Linux
+  python3 -m json.tool /etc/meshcore/flex_radio_bot.json
+  ```
 
 ### `[FLEX] unauthorized`
 
 Sender's 64-hex public key is not in `allowed_sender_keys`.
 
-- For DMs, look at the bot's audit log:
-  `grep UNAUTHORIZED /var/log/flex_radio_bot.log`. The exact `key=...` value
-  is logged. Add it to the config.
+- For DMs, look at the bot's audit log (path depends on platform — see
+  "Reading the audit log" in OPERATIONS.md):
+  ```bash
+  # macOS
+  grep UNAUTHORIZED ~/Library/Logs/flex_radio_bot.log
+  # Linux
+  grep UNAUTHORIZED /var/log/flex_radio_bot.log
+  ```
+  The exact `key=...` value is logged. Add it to the config.
 - For channel messages, this is expected — `sender_key` is always `None` in
   channels, so the allowlist can never match. Use a DM.
 
@@ -45,7 +61,8 @@ You sent `!flex on` (or similar mutating command) in a channel.
 
 Something blew up inside `_handle()` that wasn't a relay error.
 
-- Check `/var/log/flex_radio_bot.log` for the traceback.
+- Check the audit log for the traceback (`~/Library/Logs/flex_radio_bot.log`
+  on macOS, `/var/log/flex_radio_bot.log` on Linux).
 - Open an issue with the traceback and what command you sent.
 
 ### Bot doesn't reply at all
@@ -129,9 +146,9 @@ or you'll race the bot's 10-second timeout.
 
 ### `flex_setup.py` can't find the device
 
-- Pi on a different subnet from the TYWB? `tinytuya.deviceScan()` is a UDP
+- Host on a different subnet from the TYWB? `tinytuya.deviceScan()` is a UDP
   broadcast and won't cross subnets. Use `--address <IP>` instead.
-- Pi's firewall blocking UDP/6666 or UDP/6667? Open them.
+- Host's firewall blocking UDP/6666 or UDP/6667? Open them.
 - Smart Life app still has an exclusive cloud session? Force-close the app
   on your phone.
 

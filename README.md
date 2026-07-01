@@ -148,7 +148,7 @@ DM-only restrictions on the mutation commands can be relaxed via the
 
 It's the relay FlexRadio themselves [document for their REM-ON use case](https://edge.flexradio.com/www/offload/20240325094526/MHCozy-WiFe-Remote-Instructions.pdf).
 Cheap (~$15), dry contact (no voltage on the Flex side), USB-powered so it
-runs off the same supply as the Pi, and supports the Tuya local-LAN protocol
+runs off any 5 V USB supply, and supports the Tuya local-LAN protocol
 so we don't have to talk to the cloud. The four-channel variant gives you
 spare relays for things like a remote antenna switch or a 12 V coffee maker
 that you didn't budget for.

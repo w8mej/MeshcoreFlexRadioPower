@@ -95,6 +95,9 @@ launchctl unload ~/Library/LaunchAgents/com.meshcore.remote-terminal.plist
 The config file hot-reloads on mtime change. To add an operator:
 
 ```bash
+# macOS
+$EDITOR ~/.config/flexradio/flex_radio_bot.json
+# Linux
 sudo $EDITOR /etc/meshcore/flex_radio_bot.json
 # add the 64-hex pubkey to allowed_sender_keys, save
 ```
@@ -108,8 +111,12 @@ behavior. The next command from that identity will get `[FLEX] unauthorized`.
 
 ## Reading the audit log
 
-The log lives at `/var/log/flex_radio_bot.log` and rotates at 1 MB with 3
-backups. Format:
+The log path is platform-selected (or overridden by `log_path` in config):
+
+- macOS: `~/Library/Logs/flex_radio_bot.log`
+- Linux: `/var/log/flex_radio_bot.log`
+
+It rotates at 1 MB with 3 backups. Format:
 
 ```
 2026-05-20 14:32:11,234 INFO ON pulse by w8mej ok=True

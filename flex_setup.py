@@ -274,7 +274,9 @@ def write_config(path: Path, cfg: dict) -> None:
     and then replaces the destination file atomically.
 
     Args:
-        path (Path): The target file path to write to (typically `/etc/meshcore/flex_radio_bot.json`).
+        path (Path): The target file path to write to.
+                     Defaults: macOS → ~/.config/flexradio/flex_radio_bot.json
+                                Linux → /etc/meshcore/flex_radio_bot.json
         cfg (dict): The configuration dictionary to serialize.
     """
     path.parent.mkdir(parents=True, exist_ok=True)

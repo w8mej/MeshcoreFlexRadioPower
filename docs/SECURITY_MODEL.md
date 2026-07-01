@@ -34,10 +34,11 @@ In rough order of importance:
             ▼             ▼               ▼
    ┌─────────────────────────────────────────────────────────────────┐
    │                        TRUSTED                                  │
-   │   Pi host  +  Remote-Terminal-for-MeshCore  +  flex_radio_bot   │
+   │   host  +  Remote-Terminal-for-MeshCore  +  flex_radio_bot      │
    │     │                                              │            │
-   │     ▼ config file (mode 0600)                      ▼ audit log  │
-   │   /etc/meshcore/flex_radio_bot.json    /var/log/flex_radio_bot.log
+   │     ▼ config (mode 0600, platform path)            ▼ audit log  │
+   │   macOS: ~/.config/flexradio/flex_radio_bot.json               │
+   │   Linux: /etc/meshcore/flex_radio_bot.json                     │
    └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,7 +84,7 @@ the same command three times in a row.
   operational: segregate the TYWB on an IoT VLAN if you have one, and
   monitor the TYWB's own LED behavior.
 
-### A4 — Local user on the Pi
+### A4 — Local user on the host
 
 **Goal:** read the `tuya_local_key` from disk.
 
@@ -118,7 +119,7 @@ A non-root local user with `CAP_DAC_OVERRIDE` or `sudo` is out of scope.
 
 ### A7 — Malicious or malfunctioning node spamming commands
 
-**Goal:** Cause a Denial of Service (DoS) on the Pi host by filling up the disk with logs of unauthorized attempts.
+**Goal:** Cause a Denial of Service (DoS) on the host by filling up the disk with logs of unauthorized attempts.
 
 **Mitigations:**
 - The bot's logger utilizes a thread-safe `RotatingFileHandler` configured with `maxBytes=1,000,000` (1MB) and a `backupCount=3`.
@@ -126,7 +127,7 @@ A non-root local user with `CAP_DAC_OVERRIDE` or `sudo` is out of scope.
 
 ## What we explicitly do not defend against
 
-- **Physical access** to the Pi, the TYWB, or the radio. If someone is in
+- **Physical access** to the host, the TYWB, or the radio. If someone is in
   the shack, all bets are off.
 - **A compromised MeshCore identity.** If an operator's private key is
   exfiltrated from their HT, the attacker effectively *is* that operator.
@@ -145,7 +146,7 @@ Beyond the defaults:
    ```
    tinytuya==1.13.2  --hash=sha256:...
    ```
-2. **Segregate the TYWB on an IoT VLAN.** Allow only the Pi's IP to reach
+2. **Segregate the TYWB on an IoT VLAN.** Allow only the host's IP to reach
    TCP/6668 on the relay.
 3. **Use a hardware key for MeshCore.** If your MeshCore client supports
    external key storage, use it.
@@ -156,7 +157,7 @@ Beyond the defaults:
 6. **Review the audit log** when you spot an unexpected state. The log
    contains every command with the requesting `sender_key`.
 7. **Configure default power-on status to OFF**: Before extracting the `tuya_local_key` and taking the TYWB off the cloud, open the Smart Life app, go to the relay settings, and ensure the "Power-on Status" is explicitly set to **OFF** (not "ON" or "Remember last state"). This ensures that if the shack loses and recovers AC power, the relay boots up safely OPEN (off).
-8. **Implement RF shielding & common-mode isolation**: High RF fields in the shack can couple into the RCA wire and trigger transient relay behavior or crash the TYWB. Place the Pi and TYWB in a shielded metal enclosure, use a high-quality double-shielded RCA cable, and wrap the cable around a Mix 31 or Mix 43 ferrite core (several turns) right before it enters the FlexRadio `REM` jack.
+8. **Implement RF shielding & common-mode isolation**: High RF fields in the shack can couple into the RCA wire and trigger transient relay behavior or crash the TYWB. Place the host and TYWB in a shielded metal enclosure, use a high-quality double-shielded RCA cable, and wrap the cable around a Mix 31 or Mix 43 ferrite core (several turns) right before it enters the FlexRadio `REM` jack.
 9. **Use HashiCorp Vault Integration**: Fetch the sensitive `tuya_local_key` dynamically from HashiCorp Vault on-demand at bot startup instead of storing the plaintext key in the local configuration file. This eliminates on-disk plaintext credentials entirely.
 
 ## Future work
